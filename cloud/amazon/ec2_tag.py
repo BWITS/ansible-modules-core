@@ -117,7 +117,7 @@ tasks:
   register: ec2_tags
 
 - name: list tags, such as Name, env if exist
-  shell: echo {{ ec2_tags.tags.Name }} {{ ec2_tags.tags.evn }}
+  shell: echo {{ ec2_tags.tags.Name }} {{ ec2_tags.tags.env }}
 
 '''
 
