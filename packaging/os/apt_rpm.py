@@ -50,13 +50,25 @@ notes:  []
 
 EXAMPLES = '''
 # install package foo
-- apt_rpm: pkg=foo state=present
+- apt_rpm:
+    pkg: foo
+    state: present
+
 # remove package foo
-- apt_rpm: pkg=foo state=absent
-# description: remove packages foo and bar 
-- apt_rpm: pkg=foo,bar state=absent
-# description: update the package database and install bar (bar will be the updated if a newer version exists) 
-- apt_rpm: name=bar state=present update_cache=yes     
+- apt_rpm:
+    pkg: foo
+    state: absent
+
+# description: remove packages foo and bar
+- apt_rpm:
+    pkg: foo,bar
+    state: absent
+
+# description: update the package database and install bar (bar will be the updated if a newer version exists)
+- apt_rpm:
+    name: bar
+    state: present
+    update_cache: yes
 '''
 
 
@@ -75,7 +87,7 @@ RPM_PATH="/usr/bin/rpm"
 def query_package(module, name):
     # rpm -q returns 0 if the package is installed,
     # 1 if it is not installed
-    rc = os.system("%s -q %s" % (RPM_PATH,name))
+    rc, out, err = module.run_command("%s -q %s" % (RPM_PATH,name))
     if rc == 0:
         return True
     else:
@@ -84,14 +96,14 @@ def query_package(module, name):
 def query_package_provides(module, name):
     # rpm -q returns 0 if the package is installed,
     # 1 if it is not installed
-    rc = os.system("%s -q --provides %s >/dev/null" % (RPM_PATH,name))
+    rc, out, err = module.run_command("%s -q --provides %s" % (RPM_PATH,name))
     return rc == 0
 
 def update_package_db(module):
-    rc = os.system("%s update" % APT_PATH)
+    rc, out, err = module.run_command("%s update" % APT_PATH)
 
     if rc != 0:
-        module.fail_json(msg="could not update package db")
+        module.fail_json(msg="could not update package db: %s" % err)
 
 def remove_packages(module, packages):
     
@@ -102,10 +114,10 @@ def remove_packages(module, packages):
         if not query_package(module, package):
             continue
 
-        rc = os.system("%s -y remove %s > /dev/null" % (APT_PATH,package))
+        rc, out, err = module.run_command("%s -y remove %s" % (APT_PATH,package))
 
         if rc != 0:
-            module.fail_json(msg="failed to remove %s" % (package))
+            module.fail_json(msg="failed to remove %s: %s" % (package, err))
     
         remove_c += 1
 
@@ -124,9 +136,7 @@ def install_packages(module, pkgspec):
 
     if len(packages) != 0:
 
-        cmd = ("%s -y install %s > /dev/null" % (APT_PATH, packages))
-
-        rc, out, err = module.run_command(cmd)
+        rc, out, err = module.run_command("%s -y install %s" % (APT_PATH, packages))
 
         installed = True
         for packages in pkgspec:

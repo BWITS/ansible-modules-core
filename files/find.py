@@ -34,7 +34,7 @@ version_added: "2.0"
 short_description: return a list of files based on specific criteria
 requirements: []
 description:
-    - Return a list files based on specific criteria. Multiple criteria are AND'd together.
+    - Return a list of files based on specific criteria. Multiple criteria are AND'd together.
 options:
     age:
         required: false
@@ -48,7 +48,7 @@ options:
         required: false
         default: '*'
         description:
-            - One or more (shell or regex) patterns, which type is controled by C(use_regex) option.
+            - One or more (shell or regex) patterns, which type is controlled by C(use_regex) option.
             - The patterns restrict the list of files to be returned to those whose basenames match at
               least one of the patterns specified. Multiple patterns can be specified using a list.
         aliases: ['pattern']
@@ -56,7 +56,7 @@ options:
         required: false
         default: null
         description:
-            - One or more re patterns which should be matched against the file content
+            - One or more regex patterns which should be matched against the file content
     paths:
         required: true
         aliases: [ "name", "path" ]
@@ -66,7 +66,8 @@ options:
         required: false
         description:
             - Type of file to select
-        choices: [ "file", "directory" ]
+            - The 'link' and 'any' choices were added in version 2.3
+        choices: [ "file", "directory", "link", "any" ]
         default: "file"
     recurse:
         required: false
@@ -118,19 +119,37 @@ options:
 
 EXAMPLES = '''
 # Recursively find /tmp files older than 2 days
-- find: paths="/tmp" age="2d" recurse=yes
+- find:
+    paths: "/tmp"
+    age: "2d"
+    recurse: yes
 
 # Recursively find /tmp files older than 4 weeks and equal or greater than 1 megabyte
-- find: paths="/tmp" age="4w" size="1m" recurse=yes
+- find:
+    paths: "/tmp"
+    age: "4w"
+    size: "1m"
+    recurse: yes
 
 # Recursively find /var/tmp files with last access time greater than 3600 seconds
-- find: paths="/var/tmp" age="3600" age_stamp=atime recurse=yes
+- find:
+    paths: "/var/tmp"
+    age: "3600"
+    age_stamp: atime
+    recurse: yes
 
 # find /var/log files equal or greater than 10 megabytes ending with .old or .log.gz
-- find: paths="/var/tmp" patterns="*.old,*.log.gz" size="10m"
+- find:
+    paths: "/var/tmp"
+    patterns: "*.old,*.log.gz"
+    size: "10m"
 
 # find /var/log files equal or greater than 10 megabytes ending with .old or .log.gz via regex
-- find: paths="/var/tmp" patterns="^.*?\.(?:old|log\.gz)$" size="10m" use_regex=True
+- find:
+    paths: "/var/tmp"
+    patterns: "^.*?\.(?:old|log\.gz)$"
+    size: "10m"
+    use_regex: True
 '''
 
 RETURN = '''
@@ -139,13 +158,13 @@ files:
     returned: success
     type: list of dictionaries
     sample: [
-        { path="/var/tmp/test1",
-          mode=0644,
-          ...,
-          checksum=16fac7be61a6e4591a33ef4b729c5c3302307523
+        { path: "/var/tmp/test1",
+          mode: "0644",
+          "...": "...",
+          checksum: 16fac7be61a6e4591a33ef4b729c5c3302307523
         },
-        { path="/var/tmp/test2",
-          ...
+        { path: "/var/tmp/test2",
+          "...": "..."
         },
         ]
 matched:
@@ -257,7 +276,7 @@ def main():
             paths         = dict(required=True, aliases=['name','path'], type='list'),
             patterns      = dict(default=['*'], type='list', aliases=['pattern']),
             contains      = dict(default=None, type='str'),
-            file_type     = dict(default="file", choices=['file', 'directory'], type='str'),
+            file_type     = dict(default="file", choices=['file', 'directory', 'link', 'any'], type='str'),
             age           = dict(default=None, type='str'),
             age_stamp     = dict(default="mtime", choices=['atime','mtime','ctime'], type='str'),
             size          = dict(default=None, type='str'),
@@ -313,13 +332,17 @@ def main():
                        continue
 
                     try:
-                        st = os.stat(fsname)
+                        st = os.lstat(fsname)
                     except:
                         msg+="%s was skipped as it does not seem to be a valid file or it cannot be accessed\n" % fsname
                         continue
 
                     r = {'path': fsname}
-                    if stat.S_ISDIR(st.st_mode) and params['file_type'] == 'directory':
+                    if params['file_type'] == 'any':
+                        if pfilter(fsobj, params['patterns'], params['use_regex']) and agefilter(st, now, age, params['age_stamp']):
+                            r.update(statinfo(st))
+                            filelist.append(r)
+                    elif stat.S_ISDIR(st.st_mode) and params['file_type'] == 'directory':
                         if pfilter(fsobj, params['patterns'], params['use_regex']) and agefilter(st, now, age, params['age_stamp']):
 
                             r.update(statinfo(st))
@@ -334,6 +357,11 @@ def main():
                             r.update(statinfo(st))
                             if params['get_checksum']:
                                 r['checksum'] = module.sha1(fsname)
+                            filelist.append(r)
+
+                    elif stat.S_ISLNK(st.st_mode) and params['file_type'] == 'link':
+                        if pfilter(fsobj, params['patterns'], params['use_regex']) and agefilter(st, now, age, params['age_stamp']):
+                            r.update(statinfo(st))
                             filelist.append(r)
 
                 if not params['recurse']:

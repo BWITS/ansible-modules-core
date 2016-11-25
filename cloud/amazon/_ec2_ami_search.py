@@ -56,9 +56,9 @@ options:
     description: EC2 region
     required: false
     default: us-east-1
-    choices: ["ap-northeast-1", "ap-southeast-1", "ap-southeast-2",
-              "eu-central-1", "eu-west-1", "sa-east-1", "us-east-1",
-              "us-west-1", "us-west-2", "us-gov-west-1"]
+    choices: ["ap-northeast-1", "ap-southeast-1", "ap-northeast-2",
+              "ap-southeast-2", "eu-central-1", "eu-west-1", "sa-east-1",
+              "us-east-1", "us-west-1", "us-west-2", "us-gov-west-1"]
   virt:
     description: virutalization type
     required: false
@@ -74,10 +74,18 @@ EXAMPLES = '''
   connection: local
   tasks:
   - name: Get the Ubuntu precise AMI
-    ec2_ami_search: distro=ubuntu release=precise region=us-west-1 store=instance-store
+    ec2_ami_search:
+      distro: ubuntu
+      release: precise
+      region: us-west-1
+      store: instance-store
     register: ubuntu_image
+
   - name: Start the EC2 instance
-    ec2: image={{ ubuntu_image.ami }} instance_type=m1.small key_name=mykey
+    ec2:
+      image: "{{ ubuntu_image.ami }}"
+      instance_type: m1.small
+      key_name: mykey
 '''
 
 import csv
@@ -88,7 +96,9 @@ SUPPORTED_DISTROS = ['ubuntu']
 
 AWS_REGIONS = ['ap-northeast-1',
                'ap-southeast-1',
+               'ap-northeast-2',
                'ap-southeast-2',
+               'ap-south-1',
                'eu-central-1',
                'eu-west-1',
                'sa-east-1',

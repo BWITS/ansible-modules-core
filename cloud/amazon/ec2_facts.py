@@ -42,10 +42,11 @@ author: "Silviu Dicu (@silviud) <silviudicu@gmail.com>"
 EXAMPLES = '''
 # Conditional example
 - name: Gather facts
-  action: ec2_facts
+  ec2_facts:
 
 - name: Conditional
-  action: debug msg="This instance is a t1.micro"
+  debug:
+    msg: "This instance is a t1.micro"
   when: ansible_ec2_instance_type == "t1.micro"
 '''
 
@@ -64,6 +65,7 @@ class Ec2Metadata(object):
                    'ap-northeast-2',
                    'ap-southeast-1',
                    'ap-southeast-2',
+                   'ap-south-1',
                    'eu-central-1',
                    'eu-west-1',
                    'sa-east-1',

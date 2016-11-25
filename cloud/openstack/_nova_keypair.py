@@ -29,7 +29,7 @@ DOCUMENTATION = '''
 ---
 module: nova_keypair
 version_added: "1.2"
-author: 
+author:
     - "Benno Joy (@bennojoy)"
     - "Michael DeHaan"
 deprecated: Deprecated in 2.0. Use os_keypair instead
@@ -83,14 +83,22 @@ requirements:
     - "python-novaclient"
 '''
 EXAMPLES = '''
-# Creates a key pair with the running users public key
-- nova_keypair: state=present login_username=admin
-                login_password=admin login_tenant_name=admin name=ansible_key
-                public_key={{ lookup('file','~/.ssh/id_rsa.pub') }}
+- name: Create a key pair with the running users public key
+  nova_keypair:
+    state: present
+    login_username: admin
+    login_password: admin
+    login_tenant_name: admin
+    name: ansible_key
+    public_key: "{{ lookup('file','~/.ssh/id_rsa.pub') }}"
 
-# Creates a new key pair and the private key returned after the run.
-- nova_keypair: state=present login_username=admin login_password=admin
-                login_tenant_name=admin name=ansible_key
+- name: Create a new key pair and the private key returned after the run.
+  nova_keypair:
+    state: present
+    login_username: admin
+    login_password: admin
+    login_tenant_name: admin
+    name: ansible_key
 '''
 
 def main():
@@ -112,9 +120,9 @@ def main():
                               service_type='compute')
     try:
         nova.authenticate()
-    except exc.Unauthorized, e:
+    except exc.Unauthorized as e:
         module.fail_json(msg = "Invalid OpenStack Nova credentials.: %s" % e.message)
-    except exc.AuthorizationFailure, e:
+    except exc.AuthorizationFailure as e:
         module.fail_json(msg = "Unable to authorize user: %s" % e.message)
 
     if module.params['state'] == 'present':
@@ -126,7 +134,7 @@ def main():
                     module.exit_json(changed = False, result = "Key present")            
         try:
             key = nova.keypairs.create(module.params['name'], module.params['public_key'])
-        except Exception, e:
+        except Exception as e:
             module.exit_json(msg = "Error in creating the keypair: %s" % e.message)
         if not module.params['public_key']:
             module.exit_json(changed = True, key = key.private_key)
@@ -136,7 +144,7 @@ def main():
             if key.name == module.params['name']:
                 try:
                     nova.keypairs.delete(module.params['name'])
-                except Exception, e:
+                except Exception as e:
                     module.fail_json(msg = "The keypair deletion has failed: %s" % e.message)
                 module.exit_json( changed = True, result = "deleted")
         module.exit_json(changed = False, result = "not present")

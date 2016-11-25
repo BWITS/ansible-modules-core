@@ -63,16 +63,25 @@ author: "Brian Coca (@bcoca)"
 
 EXAMPLES = '''
 # Obtain the extended attributes  of /etc/foo.conf
-- xattr: name=/etc/foo.conf
+- xattr:
+    name: /etc/foo.conf
 
 # Sets the key 'foo' to value 'bar'
-- xattr: path=/etc/foo.conf key=user.foo value=bar
+- xattr:
+    path: /etc/foo.conf
+    key: user.foo
+    value: bar
 
 # Removes the key 'foo'
-- xattr: name=/etc/foo.conf key=user.foo state=absent
+- xattr:
+    name: /etc/foo.conf
+    key: user.foo
+    state: absent
 '''
 
 import operator
+import re
+import os
 
 def get_xattr_keys(module,path,follow):
     cmd = [ module.get_bin_path('getfattr', True) ]
@@ -124,7 +133,8 @@ def _run_xattr(module,cmd,check_rc=True):
 
     try:
         (rc, out, err) = module.run_command(' '.join(cmd), check_rc=check_rc)
-    except Exception, e:
+    except Exception:
+        e = get_exception()
         module.fail_json(msg="%s!" % e.strerror)
 
     #result = {'raw': out}
@@ -201,7 +211,7 @@ def main():
     module.exit_json(changed=changed, msg=msg, xattr=res)
 
 # import module snippets
-from ansible.module_utils.basic import *
-
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.pycompat24 import get_exception
 if __name__ == '__main__':
     main()

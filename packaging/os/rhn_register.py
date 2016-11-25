@@ -83,30 +83,44 @@ options:
 
 EXAMPLES = '''
 # Unregister system from RHN.
-- rhn_register: state=absent username=joe_user password=somepass
+- rhn_register:
+    state: absent
+    username: joe_user
+    password: somepass
 
 # Register as user (joe_user) with password (somepass) and auto-subscribe to available content.
-- rhn_register: state=present username=joe_user password=somepass
+- rhn_register:
+    state: present
+    username: joe_user
+    password: somepass
 
 # Register with activationkey (1-222333444) and enable extended update support.
-- rhn_register: state=present activationkey=1-222333444 enable_eus=true
+- rhn_register:
+    state: present
+    activationkey: 1-222333444
+    enable_eus: true
 
 # Register with activationkey (1-222333444) and set a profilename which may differ from the hostname.
-- rhn_register: state=present activationkey=1-222333444 profilename=host.example.com.custom
+- rhn_register:
+    state: present
+    activationkey: 1-222333444
+    profilename: host.example.com.custom
 
 # Register as user (joe_user) with password (somepass) against a satellite
 # server specified by (server_url).
-- rhn_register: >
-    state=present
-    username=joe_user
-    password=somepass
-    server_url=https://xmlrpc.my.satellite/XMLRPC
+- rhn_register:
+    state: present
+    username: joe_user
+    password: somepass'
+    server_url: 'https://xmlrpc.my.satellite/XMLRPC'
 
 # Register as user (joe_user) with password (somepass) and enable
 # channels (rhel-x86_64-server-6-foo-1) and (rhel-x86_64-server-6-bar-1).
-- rhn_register: state=present username=joe_user
-                password=somepass
-                channels=rhel-x86_64-server-6-foo-1,rhel-x86_64-server-6-bar-1
+- rhn_register:
+    state: present
+    username: joe_user
+    password: somepass
+    channels: rhel-x86_64-server-6-foo-1,rhel-x86_64-server-6-bar-1
 '''
 
 import sys
@@ -119,8 +133,9 @@ sys.path.insert(0, '/usr/share/rhn')
 try:
     import up2date_client
     import up2date_client.config
-except ImportError, e:
-    module.fail_json(msg="Unable to import up2date_client.  Is 'rhn-client-tools' installed?\n%s" % e)
+    HAS_UP2DATE_CLIENT = True
+except ImportError:
+    HAS_UP2DATE_CLIENT = False
 
 # INSERT REDHAT SNIPPETS
 from ansible.module_utils.redhat import *
@@ -137,15 +152,19 @@ class Rhn(RegistrationBase):
         '''
             Read configuration from /etc/sysconfig/rhn/up2date
         '''
+        if not HAS_UP2DATE_CLIENT:
+            return None
+
         self.config = up2date_client.config.initUp2dateConfig()
 
         # Add support for specifying a default value w/o having to standup some
         # configuration.  Yeah, I know this should be subclassed ... but, oh
         # well
         def get_option_default(self, key, default=''):
-            # ignore pep8 W601 errors for this line
-            # setting this to use 'in' does not work in the rhn library
-            if self.has_key(key):
+            # the class in rhn-client-tools that this comes from didn't
+            # implement __contains__() until 2.5.x.  That's why we check if
+            # the key is present in the dictionary that is the actual storage
+            if key in self.dict:
                 return self[key]
             else:
                 return default
@@ -339,7 +358,7 @@ def main():
                     state = dict(default='present', choices=['present', 'absent']),
                     username = dict(default=None, required=False),
                     password = dict(default=None, required=False, no_log=True),
-                    server_url = dict(default=rhn.config.get_option('serverURL'), required=False),
+                    server_url = dict(default=None, required=False),
                     activationkey = dict(default=None, required=False, no_log=True),
                     profilename = dict(default=None, required=False),
                     sslcacert = dict(default=None, required=False, type='path'),
@@ -348,6 +367,12 @@ def main():
                     channels = dict(default=[], type='list'),
                 )
             )
+
+    if not HAS_UP2DATE_CLIENT:
+        module.fail_json(msg="Unable to import up2date_client.  Is 'rhn-client-tools' installed?")
+
+    if not module.params['server_url']:
+        module.params['server_url'] = rhn.config.get_option('serverURL')
 
     state = module.params['state']
     rhn.username = module.params['username']
@@ -377,7 +402,8 @@ def main():
                 rhn.enable()
                 rhn.register(module.params['enable_eus'] == True, activationkey, profilename, sslcacert, systemorgid)
                 rhn.subscribe(channels)
-            except Exception, e:
+            except Exception:
+                e = get_exception()
                 module.fail_json(msg="Failed to register with '%s': %s" % (rhn.hostname, e))
 
             module.exit_json(changed=True, msg="System successfully registered to '%s'." % rhn.hostname)
@@ -389,7 +415,8 @@ def main():
         else:
             try:
                 rhn.unregister()
-            except Exception, e:
+            except Exception:
+                e = get_exception()
                 module.fail_json(msg="Failed to unregister: %s" % e)
 
             module.exit_json(changed=True, msg="System successfully unregistered from %s." % rhn.hostname)

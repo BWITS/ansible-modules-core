@@ -94,14 +94,22 @@ author: "Ansible Core Team (deprecated)"
 '''
 
 EXAMPLES = '''
-# Create a tenant
-- keystone_user: tenant=demo tenant_description="Default Tenant"
+- name: Create a tenant
+  keystone_user:
+    tenant: demo
+    tenant_description: "Default Tenant"
 
-# Create a user
-- keystone_user: user=john tenant=demo password=secrete
+- name: Create a user
+  keystone_user:
+    user: john
+    tenant: demo
+    password: secrete
 
-# Apply the admin role to the john user in the demo tenant
-- keystone_user: role=admin user=john tenant=demo
+- name: Apply the admin role to the john user in the demo tenant
+  keystone_user:
+    role: admin
+    user: john
+    tenant: demo
 '''
 
 try:
@@ -229,7 +237,7 @@ def ensure_user_exists(keystone, user_name, password, email, tenant_name,
                        check_mode):
     """ Check if user exists
 
-        Return (True, id) if a new user was created, (False, id) user alrady
+        Return (True, id) if a new user was created, (False, id) user already
         exists
     """
 
@@ -368,7 +376,7 @@ def main():
         d = dispatch(keystone, user, password, tenant, tenant_description,
                      email, role, state, endpoint, token, login_user,
                      login_password, check_mode)
-    except Exception, e:
+    except Exception as e:
         if check_mode:
             # If we have a failure in check mode
             module.exit_json(changed=True,

@@ -25,12 +25,12 @@ description:
        (U(http://jinja.pocoo.org/docs/)) - documentation on the template
        formatting can be found in the Template Designer Documentation
        (U(http://jinja.pocoo.org/docs/templates/)).
-     - "Six additional variables can be used in templates: C(ansible_managed) 
+     - "Six additional variables can be used in templates: C(ansible_managed)
        (configurable via the C(defaults) section of C(ansible.cfg)) contains a string
        which can be used to describe the template name, host, modification time of the
-       template file and the owner uid, C(template_host) contains the node name of 
+       template file and the owner uid, C(template_host) contains the node name of
        the template's machine, C(template_uid) the owner, C(template_path) the
-       absolute path of the template, C(template_fullpath) is the absolute path of the 
+       absolute path of the template, C(template_fullpath) is the absolute path of the
        template, and C(template_run_date) is the date that the template was rendered. Note that including
        a string that uses a date in the template will result in the template being marked 'changed'
        each time."
@@ -60,6 +60,13 @@ options:
     default: "yes"
 notes:
   - "Since Ansible version 0.9, templates are loaded with C(trim_blocks=True)."
+  - "Also, you can override jinja2 settings by adding a special header to template file.
+    i.e. C(#jinja2:variable_start_string:'[%' , variable_end_string:'%]', trim_blocks: False)
+    which changes the variable interpolation markers to  [% var %] instead of  {{ var }}.
+    This is the best way to prevent evaluation of things that look like, but should not be Jinja2.
+    raw/endraw in Jinja2 will not work as you expect because templates in Ansible are recursively evaluated."
+
+
 author:
     - Ansible Core Team
     - Michael DeHaan
@@ -70,11 +77,24 @@ extends_documentation_fragment:
 
 EXAMPLES = '''
 # Example from Ansible Playbooks
-- template: src=/mytemplates/foo.j2 dest=/etc/file.conf owner=bin group=wheel mode=0644
+- template:
+    src: /mytemplates/foo.j2
+    dest: /etc/file.conf
+    owner: bin
+    group: wheel
+    mode: 0644
 
 # The same example, but using symbolic modes equivalent to 0644
-- template: src=/mytemplates/foo.j2 dest=/etc/file.conf owner=bin group=wheel mode="u=rw,g=r,o=r"
+- template:
+    src: /mytemplates/foo.j2
+    dest: /etc/file.conf
+    owner: bin
+    group: wheel
+    mode: "u=rw,g=r,o=r"
 
 # Copy a new "sudoers" file into place, after passing validation with visudo
-- template: src=/mine/sudoers dest=/etc/sudoers validate='visudo -cf %s'
+- template:
+    src: /mine/sudoers
+    dest: /etc/sudoers
+    validate: 'visudo -cf %s'
 '''
